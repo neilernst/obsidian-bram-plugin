@@ -1,0 +1,10 @@
+{
+	"id": "bram-project-tracker",
+	"name": "Bram Project Tracker",
+	"version": "0.1.0",
+	"minAppVersion": "1.0.0",
+	"description": "View Bram worklists and repository activity alongside project notes.",
+	"author": "Neil Ernst",
+	"authorUrl": "https://github.com/neilernst",
+	"isDesktopOnly": true
+}

@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Generated plugin bundle
+main.js
+*.map
+
+# Obsidian development vault data
+.obsidian/
+data.json
+
+# macOS
+.DS_Store
