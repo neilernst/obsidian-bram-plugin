@@ -7,6 +7,7 @@ const production = process.argv[2] === "production";
 const options = {
 	entryPoints: ["main.ts"],
 	bundle: true,
+	platform: "node",
 	format: "cjs",
 	target: "es2021",
 	outfile: "main.js",
