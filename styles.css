@@ -1,1 +1,218 @@
-/* Plugin styles are added alongside the project overview in a later step. */
+.bram-project-overview {
+	--bram-overview-border: var(--background-modifier-border);
+	--bram-overview-muted: var(--text-muted);
+	--bram-overview-surface: var(--background-secondary);
+	overflow: auto;
+}
+
+.bram-project-overview__body {
+	max-width: 1120px;
+	margin: 0 auto;
+	padding: 24px clamp(16px, 4vw, 40px) 48px;
+}
+
+.bram-project-overview__toolbar,
+.bram-project-overview__project-header,
+.bram-project-overview__item-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.bram-project-overview__toolbar {
+	margin-bottom: 24px;
+}
+
+.bram-project-overview__refresh-summary h1,
+.bram-project-overview__project-header h2,
+.bram-project-overview__section h3,
+.bram-project-overview__subheading {
+	margin: 0;
+}
+
+.bram-project-overview__last-refresh,
+.bram-project-overview__root,
+.bram-project-overview__data-state,
+.bram-project-overview__section-summary,
+.bram-project-overview__item-id,
+.bram-project-overview__item-files,
+.bram-project-overview__metric-label,
+.bram-project-overview__empty-copy {
+	color: var(--bram-overview-muted);
+}
+
+.bram-project-overview__last-refresh {
+	margin: 6px 0 0;
+}
+
+.bram-project-overview__refresh-button,
+.bram-project-overview__note-button {
+	flex: 0 0 auto;
+}
+
+.bram-project-overview__empty-state,
+.bram-project-overview__project {
+	border: 1px solid var(--bram-overview-border);
+	border-radius: 10px;
+	background: var(--background-primary);
+}
+
+.bram-project-overview__empty-state {
+	padding: 24px;
+}
+
+.bram-project-overview__empty-state h2 {
+	margin-top: 0;
+}
+
+.bram-project-overview__project {
+	margin-top: 20px;
+	padding: 20px;
+}
+
+.bram-project-overview__project-header {
+	align-items: flex-start;
+	padding-bottom: 18px;
+	border-bottom: 1px solid var(--bram-overview-border);
+}
+
+.bram-project-overview__project-heading {
+	min-width: 0;
+}
+
+.bram-project-overview__project-heading h2 {
+	margin: 0 0 6px;
+	font-size: 1.25em;
+}
+
+.bram-project-overview__root {
+	display: block;
+	max-width: 100%;
+	white-space: normal;
+	word-break: break-word;
+}
+
+.bram-project-overview__section {
+	margin-top: 20px;
+}
+
+.bram-project-overview__section h3 {
+	font-size: 1.05em;
+}
+
+.bram-project-overview__data-state,
+.bram-project-overview__section-summary,
+.bram-project-overview__empty-copy {
+	margin: 8px 0;
+	font-size: 0.9em;
+}
+
+.bram-project-overview__data-state--error {
+	padding: 9px 11px;
+	border-left: 3px solid var(--text-error);
+	background: var(--background-modifier-error);
+	color: var(--text-normal);
+}
+
+.bram-project-overview__metrics {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+	gap: 10px;
+	margin: 12px 0 20px;
+}
+
+.bram-project-overview__metric {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 7px;
+	padding: 12px;
+	border: 1px solid var(--bram-overview-border);
+	border-radius: 8px;
+	background: var(--bram-overview-surface);
+}
+
+.bram-project-overview__metric-label {
+	font-size: 0.8em;
+}
+
+.bram-project-overview__metric-value {
+	overflow-wrap: anywhere;
+}
+
+.bram-project-overview__worklist-items,
+.bram-project-overview__commits {
+	margin: 12px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.bram-project-overview__worklist-item,
+.bram-project-overview__commits li {
+	padding: 12px 0;
+	border-top: 1px solid var(--bram-overview-border);
+}
+
+.bram-project-overview__item-header {
+	justify-content: flex-start;
+	flex-wrap: wrap;
+}
+
+.bram-project-overview__status {
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+	font-size: 0.75em;
+	text-transform: capitalize;
+}
+
+.bram-project-overview__status--applied {
+	background: var(--background-modifier-success);
+}
+
+.bram-project-overview__item-id {
+	display: inline-block;
+	margin-top: 5px;
+}
+
+.bram-project-overview__item-files {
+	margin: 4px 0 0;
+	font-size: 0.8em;
+}
+
+.bram-project-overview__subheading {
+	margin-top: 18px;
+	font-size: 0.9em;
+}
+
+.bram-project-overview__commits li {
+	display: grid;
+	grid-template-columns: minmax(52px, auto) 1fr;
+	gap: 12px;
+	align-items: baseline;
+}
+
+.bram-project-overview__commits code {
+	color: var(--text-accent);
+}
+
+@media (max-width: 600px) {
+	.bram-project-overview__body {
+		padding: 16px 12px 32px;
+	}
+
+	.bram-project-overview__toolbar,
+	.bram-project-overview__project-header {
+		align-items: flex-start;
+	}
+
+	.bram-project-overview__project-header {
+		flex-direction: column;
+	}
+
+	.bram-project-overview__commits li {
+		grid-template-columns: 1fr;
+		gap: 4px;
+	}
+}

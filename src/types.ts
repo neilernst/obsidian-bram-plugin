@@ -33,6 +33,18 @@ export interface WorklistSnapshot {
 	items: WorklistItem[];
 }
 
+export interface SnapshotState<T> {
+	snapshot: T | null;
+	error: ReadError | null;
+	lastSuccessAt: number | null;
+}
+
+export interface ProjectOverviewState {
+	repositoryRoot: string;
+	worklist: SnapshotState<WorklistSnapshot>;
+	git: SnapshotState<GitSnapshot>;
+}
+
 export interface GitCommit {
 	hash: string;
 	subject: string;
