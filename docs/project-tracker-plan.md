@@ -19,7 +19,7 @@ Recheck these facts when implementing; they are a snapshot, not project targets.
 
 ## Key user stories
 
-1. As a user, I can register a Bram checkout by name and local path, beginning with `~/src/bram`.
+1. As a user, I can add Bram by pointing the tracker to its repository folder, `~/src/bram`, so the tracker knows which project to show.
 2. As a user, I can see active worklist items and repository activity together, so I can tell what Bram is working on and whether the checkout has local changes.
 3. As a user, I can open a regular Obsidian Markdown note for each project, add decisions and progress notes, and link bibliography entries with my existing Obsidian conventions.
 4. As a user, I can add the Solitaire demo project and see the same project overview in a safe sample vault.
