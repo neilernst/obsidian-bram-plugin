@@ -1,5 +1,6 @@
 import { Plugin } from "obsidian";
 import { ProjectRegistry } from "./src/project-registry";
+import { registerProjectNoteBlock } from "./src/project-note-block";
 import { ProjectSettingsTab } from "./src/project-settings";
 import { ProjectOverviewView, PROJECT_OVERVIEW_VIEW } from "./src/views/project-overview";
 
@@ -13,6 +14,7 @@ export default class BramProjectTrackerPlugin extends Plugin {
 			console.warn(`[${this.manifest.name}] ${result.error.message}`);
 		}
 
+		registerProjectNoteBlock(this, this.projectRegistry);
 		this.registerView(
 			PROJECT_OVERVIEW_VIEW,
 			(leaf) => new ProjectOverviewView(leaf, this.projectRegistry),

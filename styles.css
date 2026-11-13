@@ -216,3 +216,116 @@
 		gap: 4px;
 	}
 }
+
+.bram-project-note-block {
+	padding: 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-secondary);
+}
+
+.bram-project-note-block__title,
+.bram-project-note-block__section h4,
+.bram-project-note-block__section h5 {
+	margin-top: 0;
+}
+
+.bram-project-note-block__section + .bram-project-note-block__section {
+	margin-top: 18px;
+	padding-top: 14px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.bram-project-note-block__summary,
+.bram-project-note-block__empty,
+.bram-project-note-block__error {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.bram-project-note-block__error {
+	color: var(--text-error);
+}
+
+.bram-project-note-block__worklist,
+.bram-project-note-block__commits {
+	margin: 10px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.bram-project-note-block__worklist li,
+.bram-project-note-block__commits li {
+	padding: 8px 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.bram-project-note-block__item-heading {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.bram-project-note-block__status {
+	padding: 2px 7px;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+	font-size: 0.75em;
+	text-transform: capitalize;
+}
+
+.bram-project-note-block__status--applied {
+	background: var(--background-modifier-success);
+}
+
+.bram-project-note-block__item-id {
+	display: inline-block;
+	margin-top: 4px;
+	color: var(--text-muted);
+}
+
+.bram-project-note-block__metrics {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+	gap: 8px;
+	margin: 10px 0 16px;
+}
+
+.bram-project-note-block__metric {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 5px;
+	padding: 9px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	font-size: 0.85em;
+}
+
+.bram-project-note-block__metric strong {
+	overflow-wrap: anywhere;
+}
+
+.bram-project-note-block__commits li {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 10px;
+	align-items: baseline;
+}
+
+.bram-project-note-block__commits code {
+	color: var(--text-accent);
+}
+
+@media (max-width: 600px) {
+	.bram-project-note-block {
+		padding: 12px;
+	}
+
+	.bram-project-note-block__commits li {
+		grid-template-columns: 1fr;
+		gap: 3px;
+	}
+}
