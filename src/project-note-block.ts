@@ -1,5 +1,6 @@
 import { type App, type MarkdownPostProcessorContext, type Plugin } from "obsidian";
 import { BramWorklistReader } from "./readers/bram-reader";
+import { GitHubIssueReader, type GitHubIssue } from "./readers/gh-issue-reader";
 import { GitReader } from "./readers/git-reader";
 import { ProjectRegistry } from "./project-registry";
 import type {
@@ -121,26 +122,71 @@ function renderRepository(parent: HTMLElement, result: ReadResult<GitSnapshot>):
 	}
 }
 
+function formatIssueDate(value: string): string {
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
+
+function renderGitHubIssues(parent: HTMLElement, result: ReadResult<GitHubIssue[]>): void {
+	const section = parent.createDiv({ cls: "bram-project-note-block__section" });
+	section.createEl("h4", { text: "GitHub issues" });
+	if (!result.ok) {
+		renderReadError(section, "GitHub issues", result.error);
+		return;
+	}
+
+	const issues = result.value;
+	section.createEl("p", {
+		cls: "bram-project-note-block__summary",
+		text: `${issues.length} open ${issues.length === 1 ? "issue" : "issues"} · showing up to 20`,
+	});
+	if (issues.length === 0) {
+		section.createEl("p", { cls: "bram-project-note-block__empty", text: "No open GitHub issues." });
+		return;
+	}
+
+	const list = section.createEl("ul", { cls: "bram-project-note-block__commits" });
+	for (const issue of issues) {
+		const row = list.createEl("li");
+		row.createEl("a", { href: issue.url, text: `#${issue.number}` });
+		const details = row.createDiv();
+		details.createEl("strong", { text: issue.title });
+		const metadata = [
+			issue.state,
+			...(issue.labels.length > 0 ? [`Labels: ${issue.labels.join(", ")}`] : []),
+			`Updated ${formatIssueDate(issue.updatedAt)}`,
+		];
+		details.createEl("p", { cls: "bram-project-note-block__summary", text: metadata.join(" · ") });
+		if (issue.bodyExcerpt) {
+			details.createEl("p", { text: issue.bodyExcerpt });
+		}
+	}
+}
+
 async function renderProjectBlock(
 	project: RegisteredProject,
 	element: HTMLElement,
 	worklistReader: BramWorklistReader,
 	gitReader: GitReader,
+	githubIssueReader: GitHubIssueReader,
 ): Promise<void> {
 	element.empty();
 	element.addClass("bram-project-note-block");
 	element.createEl("h3", { cls: "bram-project-note-block__title", text: project.displayName });
-	const [worklist, git] = await Promise.all([
+	const [worklist, git, issues] = await Promise.all([
 		safeRead("Bram Worklist", () => worklistReader.read(project)),
 		safeRead("Git repository", () => gitReader.read(project)),
+		safeRead("GitHub issues", () => githubIssueReader.read(project)),
 	]);
 	renderWorklist(element, worklist);
 	renderRepository(element, git);
+	renderGitHubIssues(element, issues);
 }
 
 export function registerProjectNoteBlock(plugin: Plugin, registry: ProjectRegistry): void {
 	const worklistReader = new BramWorklistReader();
 	const gitReader = new GitReader();
+	const githubIssueReader = new GitHubIssueReader();
 
 	plugin.registerMarkdownCodeBlockProcessor(
 		"bram-project",
@@ -154,7 +200,7 @@ export function registerProjectNoteBlock(plugin: Plugin, registry: ProjectRegist
 				});
 				return;
 			}
-			await renderProjectBlock(project, element, worklistReader, gitReader);
+			await renderProjectBlock(project, element, worklistReader, gitReader, githubIssueReader);
 		},
 	);
 }
