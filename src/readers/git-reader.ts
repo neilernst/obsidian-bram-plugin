@@ -3,6 +3,7 @@ import {
 	normalizeRepositoryRoot,
 	type GitCommit,
 	type GitFileCounts,
+	type GitLineChangePoint,
 	type GitSnapshot,
 	type ReadError,
 	type ReadResult,
@@ -12,6 +13,7 @@ import {
 const COMMAND_TIMEOUT_MS = 10_000;
 const MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 const RECENT_COMMIT_LIMIT = 5;
+const LINE_CHANGE_DAY_COUNT = 30;
 
 interface CommandError extends Error {
 	code?: number | string;
@@ -110,6 +112,81 @@ function parseCommits(stdout: string): ReadResult<GitCommit[]> {
 	return { ok: true, value: commits };
 }
 
+interface LineChangeWindow {
+	start: Date;
+	dates: string[];
+}
+
+function localDateKey(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+function createLineChangeWindow(): LineChangeWindow {
+	const end = new Date();
+	end.setHours(0, 0, 0, 0);
+	const start = new Date(end);
+	start.setDate(start.getDate() - (LINE_CHANGE_DAY_COUNT - 1));
+	const dates = Array.from({ length: LINE_CHANGE_DAY_COUNT }, (_, index) => {
+		const date = new Date(start);
+		date.setDate(start.getDate() + index);
+		return localDateKey(date);
+	});
+	return { start, dates };
+}
+
+function zeroLineChanges(window: LineChangeWindow): GitLineChangePoint[] {
+	return window.dates.map((date) => ({ date, linesChanged: 0 }));
+}
+
+function parseLineChanges(stdout: string, window: LineChangeWindow): ReadResult<GitLineChangePoint[]> {
+	const counts = new Map<string, number>();
+	for (const date of window.dates) counts.set(date, 0);
+	let commitTimestamp: number | null = null;
+	for (const line of stdout.split(/\r?\n/)) {
+		if (line.length === 0) continue;
+		if (/^\d+$/.test(line)) {
+			commitTimestamp = Number(line);
+			if (!Number.isSafeInteger(commitTimestamp)) {
+				return failure("invalid", "Git returned an invalid commit timestamp for line history.");
+			}
+			continue;
+		}
+
+		const numstat = /^(\d+|-)	(\d+|-)	/.exec(line);
+		if (!numstat || commitTimestamp === null) {
+			return failure("invalid", "Git returned an unexpected line-history format.");
+		}
+		if (numstat[1] === "-" || numstat[2] === "-") continue;
+
+		const additions = Number(numstat[1]);
+		const deletions = Number(numstat[2]);
+		if (!Number.isSafeInteger(additions) || !Number.isSafeInteger(deletions)) {
+			return failure("invalid", "Git returned an invalid line count for line history.");
+		}
+		const commitDate = new Date(commitTimestamp * 1000);
+		if (Number.isNaN(commitDate.getTime())) {
+			return failure("invalid", "Git returned an invalid commit date for line history.");
+		}
+		const date = localDateKey(commitDate);
+		const existing = counts.get(date);
+		if (existing !== undefined) {
+			const total = existing + additions + deletions;
+			if (!Number.isSafeInteger(total)) {
+				return failure("invalid", "Git returned an out-of-range daily line count.");
+			}
+			counts.set(date, total);
+		}
+	}
+
+	return {
+		ok: true,
+		value: window.dates.map((date) => ({ date, linesChanged: counts.get(date) ?? 0 })),
+	};
+}
+
 export class GitReader {
 	async read(project: RegisteredProject): Promise<ReadResult<GitSnapshot>> {
 		let repositoryRoot: string;
@@ -131,10 +208,15 @@ export class GitReader {
 		const status = parseStatus(statusCommand.value.stdout);
 		if (!status.ok) return status;
 
-		const logCommand = await runGit(repositoryRoot, [
-			"log",
-			`-${RECENT_COMMIT_LIMIT}`,
-			"--format=%h%x09%s",
+		const lineChangeWindow = createLineChangeWindow();
+		const [logCommand, lineChangeCommand] = await Promise.all([
+			runGit(repositoryRoot, ["log", `-${RECENT_COMMIT_LIMIT}`, "--format=%h%x09%s"]),
+			runGit(repositoryRoot, [
+				"log",
+				`--since=${lineChangeWindow.start.toISOString()}`,
+				"--format=%ct",
+				"--numstat",
+			]),
 		]);
 		let commits: GitCommit[];
 		if (!logCommand.ok) {
@@ -146,6 +228,16 @@ export class GitReader {
 			commits = parsedCommits.value;
 		}
 
+		let lineChanges: GitLineChangePoint[];
+		if (!lineChangeCommand.ok) {
+			if (!/does not have any commits yet/i.test(lineChangeCommand.error.message)) return lineChangeCommand;
+			lineChanges = zeroLineChanges(lineChangeWindow);
+		} else {
+			const parsedLineChanges = parseLineChanges(lineChangeCommand.value.stdout, lineChangeWindow);
+			if (!parsedLineChanges.ok) return parsedLineChanges;
+			lineChanges = parsedLineChanges.value;
+		}
+
 		return {
 			ok: true,
 			value: {
@@ -153,6 +245,7 @@ export class GitReader {
 				head: commits[0]?.hash ?? null,
 				recentCommits: commits,
 				fileCounts: status.value.fileCounts,
+				lineChanges,
 			},
 		};
 	}

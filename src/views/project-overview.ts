@@ -3,6 +3,7 @@ import { BramWorklistReader } from "../readers/bram-reader";
 import { GitReader } from "../readers/git-reader";
 import { ProjectRegistry } from "../project-registry";
 import type {
+	GitLineChangePoint,
 	GitSnapshot,
 	ProjectOverviewState,
 	ReadResult,
@@ -28,6 +29,45 @@ function formatTime(timestamp: number): string {
 
 function formatCount(value: number): string {
 	return value.toLocaleString();
+}
+
+function renderLineChangeSparkline(parent: HTMLElement, points: GitLineChangePoint[]): void {
+	parent.createEl("h4", {
+		cls: "bram-project-overview__subheading",
+		text: "Lines changed per day · last 30 days",
+	});
+	const peak = points.reduce((maximum, point) => Math.max(maximum, point.linesChanged), 0);
+	if (peak === 0) {
+		parent.createEl("p", { cls: "bram-project-overview__empty-copy", text: "No line changes in the last 30 days." });
+		return;
+	}
+
+	const peakPoint = points.find((point) => point.linesChanged === peak);
+	const firstDate = points[0]?.date ?? "";
+	const lastDate = points[points.length - 1]?.date ?? "";
+	const description = `Daily insertions and deletions from ${firstDate} to ${lastDate}. Peak: ${formatCount(peak)} lines on ${peakPoint?.date ?? "an unknown date"}.`;
+	const figure = parent.createEl("figure", { cls: "bram-project-overview__sparkline" });
+	const svgNamespace = "http://www.w3.org/2000/svg";
+	const svg = document.createElementNS(svgNamespace, "svg");
+	svg.setAttribute("viewBox", "0 0 300 60");
+	svg.setAttribute("role", "img");
+	svg.setAttribute("aria-label", description);
+	const title = document.createElementNS(svgNamespace, "title");
+	title.textContent = description;
+	svg.appendChild(title);
+	const polyline = document.createElementNS(svgNamespace, "polyline");
+	const coordinates = points.map((point, index) => {
+		const x = 4 + (index / Math.max(points.length - 1, 1)) * 292;
+		const y = 52 - (point.linesChanged / peak) * 44;
+		return `${x},${y}`;
+	});
+	polyline.setAttribute("points", coordinates.join(" "));
+	polyline.setAttribute("class", "bram-project-overview__sparkline-line");
+	svg.appendChild(polyline);
+	figure.appendChild(svg);
+	figure.createEl("figcaption", {
+		text: `${firstDate} to ${lastDate} · 0–${formatCount(peak)} lines per day · insertions + deletions`,
+	});
 }
 
 export class ProjectOverviewView extends ItemView {
@@ -227,6 +267,7 @@ export class ProjectOverviewView extends ItemView {
 		this.renderMetric(metrics, "Staged files", formatCount(git.fileCounts.staged));
 		this.renderMetric(metrics, "Unstaged files", formatCount(git.fileCounts.unstaged));
 		this.renderMetric(metrics, "Untracked files", formatCount(git.fileCounts.untracked));
+		renderLineChangeSparkline(section, git.lineChanges);
 
 		section.createEl("h4", { cls: "bram-project-overview__subheading", text: "Recent commits" });
 		if (git.recentCommits.length === 0) {

@@ -48,6 +48,8 @@ Use a public GitHub repository with no open issues to check the empty state if o
   git -C "/path/to/fixture" log -5 --format='%h%x09%s'
   ```
 
+- Prepare fixture commits with known additions and deletions on several dates in the previous 30 days. Use the sparkline's first displayed date at local midnight with `git -C "/path/to/fixture" log --since="<start-date> 00:00:00" --format='%ct' --numstat`; sum additions and deletions by local commit date and ignore binary-file `-` counts. Confirm the date range and peak scale match, and that an empty repository or a period with no line changes has a clear empty state.
+
 - Compare staged, unstaged, and untracked counts. Confirm a staged deletion is still shown as repository activity, not completed work.
 - Compare the overview and note block for the same project. Confirm the block resolves the intended project and reflects the same Worklist and Git snapshot.
 - Change the temporary Worklist fixture and local Git state, then click **Refresh** in the note block. Confirm the displayed values and last-refresh time update without rerendering the note. Click it again while a refresh is running and confirm duplicate reads are not started.

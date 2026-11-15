@@ -57,11 +57,17 @@ export interface GitFileCounts {
 	untracked: number;
 }
 
+export interface GitLineChangePoint {
+	date: string;
+	linesChanged: number;
+}
+
 export interface GitSnapshot {
 	branch: string | null;
 	head: string | null;
 	recentCommits: GitCommit[];
 	fileCounts: GitFileCounts;
+	lineChanges: GitLineChangePoint[];
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
