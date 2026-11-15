@@ -16,6 +16,7 @@ export class ProjectSettingsTab extends PluginSettingTab {
 	private displayName = "";
 	private repositoryRoot = "";
 	private notePath = "";
+	private githubToken = "";
 
 	constructor(
 		app: App,
@@ -33,6 +34,21 @@ export class ProjectSettingsTab extends PluginSettingTab {
 		containerEl.createEl("p", {
 			text: "Register local repositories and link each one to a note in this vault. Repository roots can be absolute paths or start with ~.",
 		});
+		this.githubToken = this.registry.getGitHubToken();
+		new Setting(containerEl)
+			.setName("GitHub API token")
+			.setDesc("Optional for public repositories. For private repositories, use a fine-grained token with Issues: read-only access. This token is stored in plugin settings and may be included in vault syncs or backups.")
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.inputEl.autocomplete = "new-password";
+				text
+					.setPlaceholder("Fine-grained personal access token")
+					.setValue(this.githubToken)
+					.onChange((value) => { this.githubToken = value; });
+			})
+			.addButton((button) => button
+				.setButtonText("Save token")
+				.onClick(() => void this.saveGitHubToken()));
 
 		new Setting(containerEl).setName("Add a project").setHeading();
 		new Setting(containerEl)
@@ -105,6 +121,17 @@ export class ProjectSettingsTab extends PluginSettingTab {
 		this.notePath = "";
 		new Notice(`Added project "${displayName}".`);
 		this.display();
+		await this.onProjectsChanged();
+	}
+
+	private async saveGitHubToken(): Promise<void> {
+		const result = await this.registry.setGitHubToken(this.githubToken);
+		if (!result.ok) {
+			new Notice(`Could not save GitHub token: ${result.error.message}`);
+			return;
+		}
+
+		new Notice(this.githubToken.trim() ? "GitHub token saved." : "GitHub token removed.");
 		await this.onProjectsChanged();
 	}
 

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { requestUrl } from "obsidian";
 import {
 	isRecord,
 	normalizeRepositoryRoot,
@@ -7,9 +8,10 @@ import {
 	type RegisteredProject,
 } from "../types";
 
-const COMMAND_TIMEOUT_MS = 15_000;
-const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
-const ISSUE_LIMIT = 20;
+const GITHUB_API_ROOT = "https://api.github.com";
+const GITHUB_API_VERSION = "2026-03-10";
+const ISSUE_LIMIT = 5;
+const ISSUE_PAGE_SIZE = 100;
 const BODY_EXCERPT_LENGTH = 280;
 
 export interface GitHubIssue {
@@ -27,12 +29,22 @@ interface CommandError extends Error {
 	killed?: boolean;
 }
 
+interface GitHubRepository {
+	owner: string;
+	repository: string;
+}
+
 function failure(kind: ReadError["kind"], message: string): ReadResult<never> {
 	return { ok: false, error: { kind, message } };
 }
 
 function nonEmptyString(value: unknown): value is string {
 	return typeof value === "string" && value.trim().length > 0;
+}
+
+function isPullRequest(candidate: Record<string, unknown>): boolean {
+	if ("pull_request" in candidate) return true;
+	return typeof candidate.html_url === "string" && /\/pull\/\d+(?:[/?#]|$)/i.test(candidate.html_url);
 }
 
 function labelNames(value: unknown, issueNumber: number): ReadResult<string[]> {
@@ -68,7 +80,7 @@ function bodyExcerpt(value: unknown, issueNumber: number): ReadResult<string> {
 
 function parseIssues(value: unknown): ReadResult<GitHubIssue[]> {
 	if (!Array.isArray(value)) {
-		return failure("invalid", "The GitHub CLI returned an unexpected issue list format.");
+		return failure("invalid", "GitHub returned an unexpected issue list format.");
 	}
 
 	const issues: GitHubIssue[] = [];
@@ -76,6 +88,8 @@ function parseIssues(value: unknown): ReadResult<GitHubIssue[]> {
 		if (!isRecord(candidate)) {
 			return failure("invalid", `GitHub issue ${index + 1} is not an object.`);
 		}
+		// The REST issues endpoint also returns pull requests; never render their details.
+		if (isPullRequest(candidate)) continue;
 		if (typeof candidate.number !== "number" || !Number.isInteger(candidate.number) || candidate.number < 1) {
 			return failure("invalid", `GitHub issue ${index + 1} has an invalid number.`);
 		}
@@ -90,10 +104,10 @@ function parseIssues(value: unknown): ReadResult<GitHubIssue[]> {
 		if (state !== "open" && state !== "closed") {
 			return failure("invalid", `GitHub issue #${issueNumber} has an unsupported state.`);
 		}
-		if (!nonEmptyString(candidate.updatedAt)) {
+		if (!nonEmptyString(candidate.updated_at)) {
 			return failure("invalid", `GitHub issue #${issueNumber} has an invalid updated date.`);
 		}
-		if (!nonEmptyString(candidate.url) || !/^https?:\/\//i.test(candidate.url)) {
+		if (!nonEmptyString(candidate.html_url) || !/^https?:\/\//i.test(candidate.html_url)) {
 			return failure("invalid", `GitHub issue #${issueNumber} has an invalid URL.`);
 		}
 
@@ -107,67 +121,147 @@ function parseIssues(value: unknown): ReadResult<GitHubIssue[]> {
 			title: candidate.title.trim(),
 			state,
 			labels: labels.value,
-			updatedAt: candidate.updatedAt.trim(),
-			url: candidate.url.trim(),
+			updatedAt: candidate.updated_at.trim(),
+			url: candidate.html_url.trim(),
 			bodyExcerpt: excerpt.value,
 		});
+		if (issues.length >= ISSUE_LIMIT) break;
 	}
 	return { ok: true, value: issues };
 }
 
-function commandFailure(cause: unknown, stderr: string): ReadResult<never> {
-	const commandError = cause as CommandError;
-	const detail = stderr.trim() || commandError.message || "Unknown command error.";
-	if (commandError.code === "ENOENT") {
-		return failure("unavailable", "GitHub CLI (gh) could not be found. Install it and ensure it is available to Obsidian.");
+function repositoryFromRemote(remote: string): GitHubRepository | null {
+	const value = remote.trim();
+	let hostname: string;
+	let pathname: string;
+
+	if (value.includes("://")) {
+		try {
+			const url = new URL(value);
+			hostname = url.hostname;
+			pathname = url.pathname;
+		} catch {
+			return null;
+		}
+	} else {
+		const scpStyle = /^(?:[^@/]+@)?([^:]+):(.+)$/.exec(value);
+		if (!scpStyle) return null;
+		hostname = scpStyle[1];
+		pathname = `/${scpStyle[2]}`;
 	}
-	if (commandError.killed) {
-		return failure("unavailable", "The GitHub issue query timed out.");
-	}
-	if (/not logged in|not logged into|not authenticated|authentication|gh auth login/i.test(detail)) {
-		return failure("unavailable", `GitHub CLI authentication failed. Run gh auth status and sign in if needed. ${detail}`);
-	}
-	if (/not a git repository|could not determine|no git remotes|not a github repository|repository .*not found/i.test(detail)) {
-		return failure("unavailable", `Could not identify a GitHub repository from the registered repository root. Check its GitHub remote. ${detail}`);
-	}
-	const exit = commandError.code === undefined ? "" : ` (exit ${commandError.code})`;
-	return failure("unavailable", `GitHub issue query failed${exit}: ${detail}`);
+
+	if (hostname.toLowerCase() !== "github.com") return null;
+	const segments = pathname.replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "").split("/");
+	if (segments.length !== 2 || segments.some((segment) => !segment.trim())) return null;
+	return { owner: segments[0], repository: segments[1] };
 }
 
-function runGh(repositoryRoot: string): Promise<ReadResult<string>> {
+function readOriginRemote(repositoryRoot: string): Promise<ReadResult<GitHubRepository>> {
 	return new Promise((resolve) => {
 		execFile(
-			"gh",
-			[
-				"issue",
-				"list",
-				"--state",
-				"open",
-				"--limit",
-				String(ISSUE_LIMIT),
-				"--json",
-				"number,title,state,labels,updatedAt,url,body",
-			],
-			{
-				cwd: repositoryRoot,
-				encoding: "utf8",
-				maxBuffer: MAX_OUTPUT_BYTES,
-				shell: false,
-				timeout: COMMAND_TIMEOUT_MS,
-				windowsHide: true,
-			},
-			(error, stdout, stderr) => {
+			"git",
+			["-C", repositoryRoot, "remote", "get-url", "origin"],
+			{ encoding: "utf8", shell: false, timeout: 10_000, windowsHide: true },
+			(error, stdout) => {
 				if (error) {
-					resolve(commandFailure(error, String(stderr)));
+					const commandError = error as CommandError;
+					if (commandError.code === "ENOENT") {
+						resolve(failure("unavailable", "Git could not be found while locating the repository's GitHub remote."));
+						return;
+					}
+					if (commandError.killed) {
+						resolve(failure("unavailable", "Looking up the repository's GitHub remote timed out."));
+						return;
+					}
+					resolve(failure("unavailable", "Could not read the origin remote. Configure an origin remote pointing to GitHub."));
 					return;
 				}
-				resolve({ ok: true, value: String(stdout) });
+
+				const repository = repositoryFromRemote(String(stdout));
+				if (!repository) {
+					resolve(failure("unavailable", "The origin remote is not a supported github.com repository URL."));
+					return;
+				}
+				resolve({ ok: true, value: repository });
 			},
 		);
 	});
 }
 
+function isRateLimited(headers: Record<string, string>): boolean {
+	return Object.entries(headers).some(([name, value]) =>
+		name.toLowerCase() === "x-ratelimit-remaining" && value === "0");
+}
+
+function httpFailure(status: number, headers: Record<string, string>, hasToken: boolean): ReadResult<never> {
+	if (status === 401) {
+		return failure("unavailable", "GitHub rejected the configured token. Check it in Bram Project Tracker settings.");
+	}
+	if (status === 403 || status === 429) {
+		if (status === 429 || isRateLimited(headers)) {
+			return failure("unavailable", "GitHub API rate limit reached. Try again later.");
+		}
+		return failure("unavailable", "GitHub denied access. Check that the token can read issues in this repository.");
+	}
+	if (status === 404) {
+		return failure(
+			"unavailable",
+			hasToken
+				? "GitHub repository was not found or the token cannot access it. Check the origin remote and token repository access."
+				: "GitHub repository was not found. If it is private, add a read-only token in Bram Project Tracker settings.",
+		);
+	}
+	return failure("unavailable", `GitHub issue request failed with HTTP ${status}.`);
+}
+
+async function fetchIssues(
+	repository: GitHubRepository,
+	token: string,
+): Promise<ReadResult<GitHubIssue[]>> {
+	const owner = encodeURIComponent(repository.owner);
+	const name = encodeURIComponent(repository.repository);
+	const headers: Record<string, string> = {
+		Accept: "application/vnd.github+json",
+		"X-GitHub-Api-Version": GITHUB_API_VERSION,
+	};
+	if (token) headers.Authorization = `Bearer ${token}`;
+
+	const issues: GitHubIssue[] = [];
+	for (let page = 1; issues.length < ISSUE_LIMIT; page += 1) {
+		let response;
+		try {
+			response = await requestUrl({
+				url: `${GITHUB_API_ROOT}/repos/${owner}/${name}/issues?state=open&per_page=${ISSUE_PAGE_SIZE}&sort=updated&direction=desc&page=${page}`,
+				method: "GET",
+				headers,
+				throw: false,
+			});
+		} catch {
+			return failure("unavailable", "Could not connect to GitHub. Check the network and try again.");
+		}
+
+		if (response.status < 200 || response.status >= 300) {
+			return httpFailure(response.status, response.headers, token.length > 0);
+		}
+
+		let pageData: unknown;
+		try {
+			pageData = response.json as unknown;
+		} catch {
+			return failure("invalid", "GitHub returned malformed JSON for the issue list.");
+		}
+
+		const parsed = parseIssues(pageData);
+		if (!parsed.ok) return parsed;
+		issues.push(...parsed.value);
+		if (!Array.isArray(pageData) || pageData.length < ISSUE_PAGE_SIZE) break;
+	}
+	return { ok: true, value: issues.slice(0, ISSUE_LIMIT) };
+}
+
 export class GitHubIssueReader {
+	constructor(private readonly getToken: () => string) {}
+
 	async read(project: RegisteredProject): Promise<ReadResult<GitHubIssue[]>> {
 		let repositoryRoot: string;
 		try {
@@ -177,15 +271,8 @@ export class GitHubIssueReader {
 			return failure("invalid", message);
 		}
 
-		const command = await runGh(repositoryRoot);
-		if (!command.ok) return command;
-
-		let data: unknown;
-		try {
-			data = JSON.parse(command.value) as unknown;
-		} catch {
-			return failure("invalid", "The GitHub CLI returned malformed JSON for the issue list.");
-		}
-		return parseIssues(data);
+		const repository = await readOriginRemote(repositoryRoot);
+		if (!repository.ok) return repository;
+		return fetchIssues(repository.value, this.getToken().trim());
 	}
 }

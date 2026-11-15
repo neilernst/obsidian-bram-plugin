@@ -13,6 +13,7 @@ interface PluginDataStore {
 
 interface ProjectRegistryData {
 	projects: RegisteredProject[];
+	githubToken: string;
 }
 
 function error(kind: ReadError["kind"], message: string): ReadError {
@@ -94,6 +95,7 @@ function copyProjects(projects: RegisteredProject[]): RegisteredProject[] {
 
 export class ProjectRegistry {
 	private projects: RegisteredProject[] = [];
+	private githubToken = "";
 	private loaded = false;
 	private loadError: ReadError | null = null;
 
@@ -101,6 +103,10 @@ export class ProjectRegistry {
 
 	getProjects(): RegisteredProject[] {
 		return copyProjects(this.projects);
+	}
+
+	getGitHubToken(): string {
+		return this.githubToken;
 	}
 
 	getLoadError(): ReadError | null {
@@ -117,6 +123,7 @@ export class ProjectRegistry {
 
 		if (saved === null || saved === undefined) {
 			this.projects = [];
+			this.githubToken = "";
 			this.loaded = true;
 			this.loadError = null;
 			return { ok: true, value: [] };
@@ -125,6 +132,9 @@ export class ProjectRegistry {
 		if (!isRecord(saved)) {
 			return this.failLoad(error("invalid", "Saved project settings must be an object."));
 		}
+		if (saved.githubToken !== undefined && typeof saved.githubToken !== "string") {
+			return this.failLoad(error("invalid", "The saved GitHub token must be a string."));
+		}
 
 		const parsed = parseProjects(saved.projects);
 		if (!parsed.ok) {
@@ -132,9 +142,32 @@ export class ProjectRegistry {
 		}
 
 		this.projects = parsed.value;
+		this.githubToken = typeof saved.githubToken === "string" ? saved.githubToken.trim() : "";
 		this.loaded = true;
 		this.loadError = null;
 		return { ok: true, value: this.getProjects() };
+	}
+
+	async setGitHubToken(value: string): Promise<ReadResult<true>> {
+		const ready = this.ensureLoaded();
+		if (!ready.ok) return ready;
+
+		const token = value.trim();
+		const data: ProjectRegistryData = {
+			projects: copyProjects(this.projects),
+			githubToken: token,
+		};
+		try {
+			await this.plugin.saveData(data);
+		} catch (cause) {
+			return {
+				ok: false,
+				error: error("unavailable", this.messageFor(cause, "Could not save the GitHub token.")),
+			};
+		}
+
+		this.githubToken = token;
+		return { ok: true, value: true };
 	}
 
 	async addProject(candidate: unknown): Promise<ReadResult<RegisteredProject[]>> {
@@ -196,13 +229,17 @@ export class ProjectRegistry {
 
 	private failLoad(loadError: ReadError): ReadResult<RegisteredProject[]> {
 		this.projects = [];
+		this.githubToken = "";
 		this.loaded = false;
 		this.loadError = loadError;
 		return { ok: false, error: loadError };
 	}
 
 	private async persist(projects: RegisteredProject[]): Promise<ReadResult<RegisteredProject[]>> {
-		const data: ProjectRegistryData = { projects: copyProjects(projects) };
+		const data: ProjectRegistryData = {
+			projects: copyProjects(projects),
+			githubToken: this.githubToken,
+		};
 		try {
 			await this.plugin.saveData(data);
 		} catch (cause) {

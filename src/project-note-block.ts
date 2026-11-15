@@ -136,16 +136,14 @@ function renderGitHubIssues(parent: HTMLElement, result: ReadResult<GitHubIssue[
 	}
 
 	const issues = result.value;
-	section.createEl("p", {
-		cls: "bram-project-note-block__summary",
-		text: `${issues.length} open ${issues.length === 1 ? "issue" : "issues"} · showing up to 20`,
-	});
 	if (issues.length === 0) {
 		section.createEl("p", { cls: "bram-project-note-block__empty", text: "No open GitHub issues." });
 		return;
 	}
 
-	const list = section.createEl("ul", { cls: "bram-project-note-block__commits" });
+	const dropdown = section.createEl("details", { cls: "bram-project-note-block__issue-dropdown" });
+	dropdown.createEl("summary", { text: `Latest ${issues.length} open ${issues.length === 1 ? "issue" : "issues"}` });
+	const list = dropdown.createEl("ul", { cls: "bram-project-note-block__commits" });
 	for (const issue of issues) {
 		const row = list.createEl("li");
 		row.createEl("a", { href: issue.url, text: `#${issue.number}` });
@@ -186,7 +184,7 @@ async function renderProjectBlock(
 export function registerProjectNoteBlock(plugin: Plugin, registry: ProjectRegistry): void {
 	const worklistReader = new BramWorklistReader();
 	const gitReader = new GitReader();
-	const githubIssueReader = new GitHubIssueReader();
+	const githubIssueReader = new GitHubIssueReader(() => registry.getGitHubToken());
 
 	plugin.registerMarkdownCodeBlockProcessor(
 		"bram-project",

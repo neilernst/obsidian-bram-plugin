@@ -6,7 +6,7 @@ Use this walkthrough after implementation steps 2–4 in [the project plan](proj
 
 1. Use a disposable Obsidian vault, not your main vault. Keep the test vault and all repository fixtures separate from real project checkouts.
 2. Build the plugin as described in the repository README, link it into the vault at `.obsidian/plugins/bram-project-tracker`, then enable **Bram Project Tracker** in **Settings → Community plugins**.
-3. Record the Obsidian version, operating system, plugin revision, and `gh --version`. The plugin launches `gh` by name, so confirm `gh` is available to the Obsidian process, not only to an interactive shell.
+3. Record the Obsidian version, operating system, plugin revision, and Git version. Confirm Git is available to the Obsidian process for local repository and origin lookup. The GitHub issue reader calls the REST API directly and does not require the GitHub CLI.
 4. Register two fixture projects with vault-resident notes. Add an empty `bram-project` fenced block to one note:
 
    ````markdown
@@ -24,7 +24,7 @@ For reproducible Worklist and Git cases, create a temporary local Git repository
 - A missing `.bram/worklist.json`, malformed JSON, an object without an `items` array, and a path that is not a Git repository.
 - If checking legacy support, a separate repository with `resources/worklist.json` and no `.bram/` directory.
 
-Use a GitHub repository with no open issues to check the empty state if one is available. For the error cases, use a local Git repository without a GitHub remote, an isolated `gh` configuration with no authenticated account, and an isolated Obsidian launch environment where `gh` is not on `PATH`. Do not remove or invalidate a real GitHub credential or change the machine-wide `PATH` to create these cases. If an isolated case cannot be created safely, mark it blocked.
+Use a public GitHub repository with no open issues to check the empty state if one is available. For private-repository checks, use a fine-grained token scoped to the fixture repository with Issues read-only permission. Use a local Git repository with no origin or with a non-GitHub origin to check repository-context errors. To check invalid credentials, enter a disposable invalid value in the test vault's token setting; never replace or invalidate a real credential. Clear the test token after the check. If an isolated case cannot be created safely, mark it blocked.
 
 ## Project overview and settings
 
@@ -53,20 +53,16 @@ Use a GitHub repository with no open issues to check the empty state if one is a
 
 **Pass when:** the displayed values match the fixture sources, refresh replaces stale values, and failed inputs are reported rather than presented as empty or clean data.
 
-## GitHub issues via `gh`
+## GitHub issues via the REST API
 
-Run the same read-only query from the registered GitHub repository root:
+- Confirm the fixture's `origin` remote points to the intended `github.com/owner/repository`. The reader uses that remote to choose the API repository.
+- For a public repository, leave the token setting empty and confirm the block loads issues. For a private repository, save a fine-grained token scoped to that repository with Issues read-only permission.
+- Confirm the issue dropdown starts collapsed and expands when selected. Compare its five issues with the first five non-PR open issues on the repository's GitHub Issues page sorted by most recently updated: number, title, labels, update date, link, and the start of the body excerpt. Confirm no pull request titles or other details appear.
+- Use a public repository with no open issues to check the empty state.
+- Check a private repository with no token, an invalid token, a token without Issues read permission, a repository without a GitHub origin, and a non-GitHub origin. Confirm each case has a readable error and the Worklist and Git sections still render.
+- If GitHub returns a rate-limit or network error during the run, record the concise error state. Do not copy credentials, tokens, or issue bodies into the results file.
 
-```sh
-gh issue list --state open --limit 20 --json number,title,state,labels,updatedAt,url,body
-```
-
-- Compare the rendered list with the command output: issue number and title, labels, update date, link, and the beginning of the body excerpt. The block shows up to 20 open issues; compare the same first 20 returned by the CLI.
-- Use a repository with no open issues to check the empty state. Confirm it says there are no open GitHub issues.
-- In isolated environments, check missing `gh`, missing authentication, and a repository with no GitHub context. Confirm each case shows a readable error and that the remaining project sections still render.
-- If the CLI fails for a different reason, record the exact non-secret error text. Do not copy credentials, tokens, or issue bodies into the results file.
-
-**Pass when:** issue content matches the CLI response, the empty state is clear, and each unavailable case is identified without disrupting Worklist or Git data.
+**Pass when:** issue content matches the repository, the empty state is clear, and each unavailable case is identified without disrupting Worklist or Git data.
 
 ## Read-only behavior
 
