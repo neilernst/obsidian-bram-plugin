@@ -146,14 +146,20 @@ function repositoryFromRemote(remote: string): GitHubRepository | null {
 	} else {
 		const scpStyle = /^(?:[^@/]+@)?([^:]+):(.+)$/.exec(value);
 		if (!scpStyle) return null;
-		hostname = scpStyle[1];
-		pathname = `/${scpStyle[2]}`;
+		const matchedHostname = scpStyle[1];
+		const matchedPath = scpStyle[2];
+		if (matchedHostname === undefined || matchedPath === undefined) return null;
+		hostname = matchedHostname;
+		pathname = `/${matchedPath}`;
 	}
 
 	if (hostname.toLowerCase() !== "github.com") return null;
 	const segments = pathname.replace(/^\/+|\/+$/g, "").replace(/\.git$/i, "").split("/");
-	if (segments.length !== 2 || segments.some((segment) => !segment.trim())) return null;
-	return { owner: segments[0], repository: segments[1] };
+	if (segments.length !== 2) return null;
+	const owner = segments[0];
+	const repository = segments[1];
+	if (owner === undefined || repository === undefined || !owner.trim() || !repository.trim()) return null;
+	return { owner, repository };
 }
 
 function readConfiguredRemote(repositoryRoot: string, remoteName: string): Promise<ReadResult<GitHubRepository>> {

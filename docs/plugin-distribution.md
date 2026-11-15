@@ -2,9 +2,17 @@
 
 **Reviewed:** 2026-11-15
 
-This report records Obsidian's current documented path for publishing Bram Project Tracker and the repository work still needed. It does not change repository visibility, create a release, or submit a directory entry.
+This report records the current GitHub-only beta release plan and Obsidian's documented Community directory requirements for a possible later submission. The beta release will not be submitted to or listed in the Obsidian Community directory.
 
-## Recommended route
+## Current beta release scope
+
+The planned first release is a GitHub pre-release tagged `0.1.0`, matching `manifest.json`, with `main.js`, `manifest.json`, and `styles.css` attached as release assets. The release notes are in [0.1.0-beta.md](releases/0.1.0-beta.md). The repository remains private, so only repository collaborators can access the release. Publication will happen after the release files and notes are reviewed and committed.
+
+Pull requests targeting `main` or `master` use the official [Obsidian Workflows GitHub Action](https://github.com/obsidianmd/obsidian-workflows) for validation, linting, and build checks. The first GitHub release remains a manual, reviewed publication; the CI workflow does not publish releases.
+
+The plugin has a recorded static security audit. Its conditional `core.fsmonitor` finding is disclosed in the README and beta notes; testers should register only repositories whose local Git configuration they trust. Address this risk before broader distribution to users who may register repositories they do not control.
+
+## Future Community directory route
 
 For in-app discovery, submit the plugin to the [Obsidian Community directory](https://community.obsidian.md). Once the entry is reviewed and published, users can install it from Obsidian. A public GitHub release by itself provides downloadable assets, but does not add the plugin to the in-app Community directory.
 
@@ -24,7 +32,7 @@ For private source code, the separate Obsidian Community Directory GitHub App is
 
 Sources: [Set up and claim](https://docs.obsidian.md/community-directory/set-up-and-claim), [Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin), and [Manage your plugin or theme](https://docs.obsidian.md/community-directory/manage-entry).
 
-## Release requirements
+## Community directory requirements
 
 Before the first submission:
 
@@ -53,22 +61,22 @@ Keep the source in a private repository and create a separate public GitHub repo
 | Area | Current state | Needed before publishing |
 |---|---|---|
 | Repository visibility | `neilernst/obsidian-bram-plugin` is private. | Choose a public source repository or the split private-source/public-release setup. |
-| License | No root `LICENSE` or `COPYING` file is present. | Choose a license and add its canonical text. This is an owner decision. |
-| README | Updated to describe the current plugin and link to this report. | Review the listing excerpt and usage instructions before submission. |
-| Manifest | ID `bram-project-tracker` does not contain `obsidian`; version is `0.1.0`; `isDesktopOnly` is `true`. | Confirm the ID is available, choose the first release version, and verify `minAppVersion` against the plugin's actual API requirements. |
-| Build | `npm run build` runs TypeScript checking and a production esbuild bundle. | Confirm this build is suitable for the directory scanner and attach its `main.js` to a release. |
-| Release process | No `.github` workflow or local Git tags are present in this checkout. | Decide whether to publish releases manually or automate them; ensure each release has a matching tag and assets. |
-| Security review | A static review is recorded in [security-audit.md](security-audit.md). | Review the conditional Git `core.fsmonitor` execution finding before distributing builds to users who may register untrusted repositories. |
+| Repository visibility | `neilernst/obsidian-bram-plugin` is private. | A directory listing requires a public release repository or a separate public releases repository connected to the private source. |
+| License | Root `LICENSE` uses BSD-3-Clause. | Keep the license and README disclosure accurate if distribution terms change. |
+| README | Describes the GitHub-only beta, installation, network use, token storage, and security boundary. | Review the listing excerpt and instructions again before any directory submission. |
+| Manifest | ID `bram-project-tracker` does not contain `obsidian`; version is `0.1.0`; `isDesktopOnly` is `true`. | Reconfirm the ID is available and `minAppVersion` remains accurate before a directory submission. |
+| Build | The current `npm run build` succeeds and produces a 34.9 KB production `main.js`. | Attach the production bundle to the matching GitHub release; do not commit it to the source repository. |
+| Release process | The initial beta is planned as a manual GitHub pre-release; no release workflow is configured. | Keep the release tag equal to the manifest version and attach the required assets. |
+| CI | `.github/workflows/ci.yml` uses the official Obsidian Workflows action on pull requests with read-only repository permissions. | Confirm the action result for a pull request before merging changes. |
+| Security review | Static findings are recorded in [security-audit.md](security-audit.md); the beta README and notes disclose the conditional `core.fsmonitor` risk. | Complete the applicable remediation work before distributing to users who may register untrusted repositories. |
 
 The repository visibility was checked through GitHub on the review date. The Community directory search returned no result for this plugin name; confirm listing status in the Community profile before submission.
 
-## Owner decisions and next steps
+## Next steps after the beta
 
-- Choose the plugin's license. Do not publish the source without an explicit license decision.
-- Choose whether to make this source repository public or create a public releases repository and connect the private source with the official GitHub App.
-- Confirm the plugin ID, minimum supported Obsidian version, and initial release version.
-- Decide whether to use manual releases or add release automation.
-- After those decisions, prepare a production release and submit the initial Community directory entry.
+- Gather beta feedback and address any release-blocking defects.
+- Complete relevant security remediation before broadening access to users who register repositories they do not control.
+- If pursuing in-app Obsidian discovery later, decide whether to make the source public or create a public releases repository, then follow the official submission and authentication process described above.
 
 ## Official sources
 
