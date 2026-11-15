@@ -3,7 +3,7 @@ This repo is driven through Bram. The canonical worklist gate is the conventions
 
 Quick summary so you can act in this turn:
 
-- `<state>/` below is Bram's state folder: `.bram/` if it exists, else `resources/`.
+- `<state>/` below is Bram's state folder: `.bram/`.
 - First response to a change request must be **(a)** a clarifying question, **(b)** a proposal — write the prose to `<state>/worklist-drafts/<id>.md` (sections `# Before` and `# After`), then add a metadata-only item to `<state>/worklist.json` with non-empty `id` and `file`/`files` (no `before` / `after` inline — the guard rejects them), or **(c)** read-only investigation explicitly prefaced *"I don't yet have enough context to propose; I need to check X first"* — and the very next action after that check must be the proposal write, not narration of a plan.
 - For XMLUI questions or non-obvious markup choices, ask the XMLUI MCP server's how-to search first (`xmlui_search_howto`), then component docs (`xmlui_component_docs`) for exact props, events and methods, and only then examples, as a fallback or to confirm local style.
 - File edits and shell writes on paths not covered by a proposed/applied worklist item are blocked at runtime, whatever the tool (`apply_patch`, `Write`/`Edit`, `write_file`/`edit_file`, shell redirects, `mcp__filesystem__*`). Antigravity's guard doesn't yet see an MCP tool named `mcp_<server>_<tool>`, but the rule still applies to it. Following the convention avoids hitting that wall.
@@ -14,5 +14,4 @@ Quick summary so you can act in this turn:
 - For `iterate:` turns, do **not** call `resolve` or `mutate`; iterate authorizes no lifecycle change, and the host sets and clears the claim itself. Read any `feedbackRef` draft from `<state>/feedback-drafts/`, and revise the proposed draft or applied files according to `.claude/bram-conventions.md`.
 - For `skip-worklist:` turns (your incoming turn begins literally with `skip-worklist: `), the user has authorized a direct edit for this turn; the host has already written a fresh `direct-edit` record to `<state>/.worklist-direct-edit.json`. Do **not** propose or write a worklist item — act on the rest of the message as a direct edit, which the guard allows.
 - `<state>/worklist.json` carries a top-level `version: N` integer. Any write you make must set `version: N+1` where `N` is what was on disk when you read the file. The guard denies stale writes with `reason=stale-worklist-version`; re-read, rebase, retry. `mutate` bumps the version on its own path. A missing version field counts as 0.
-- When a Markdown plan step is numbered, include that step number in the corresponding worklist item ID and draft heading so the Worklist row remains traceable to the plan.
 <!-- bram:end -->
