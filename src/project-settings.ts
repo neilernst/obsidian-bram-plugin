@@ -94,17 +94,37 @@ export class ProjectSettingsTab extends PluginSettingTab {
 		}
 
 		for (const project of projects) {
-			let remoteName = project.remoteName;
+			const projectConfig = { ...project };
+			new Setting(containerEl).setName(project.displayName).setHeading();
 			new Setting(containerEl)
-				.setName(project.displayName)
-				.setDesc(`${project.repositoryRoot}\nProject note: ${project.notePath}\nGit remote used for issue lookup.`)
+				.setName("Display name")
+				.addText((text) => text
+					.setValue(projectConfig.displayName)
+					.onChange((value) => { projectConfig.displayName = value; }));
+			new Setting(containerEl)
+				.setName("Repository root")
+				.setDesc("Absolute path or a home-relative path starting with ~.")
+				.addText((text) => text
+					.setValue(projectConfig.repositoryRoot)
+					.onChange((value) => { projectConfig.repositoryRoot = value; }));
+			new Setting(containerEl)
+				.setName("Project note")
+				.setDesc("Vault path or link for this project's Obsidian note.")
+				.addText((text) => text
+					.setValue(projectConfig.notePath)
+					.onChange((value) => { projectConfig.notePath = value; }));
+			new Setting(containerEl)
+				.setName("Git remote")
+				.setDesc("Remote used to identify the GitHub repository for issue lookup.")
 				.addText((text) => text
 					.setPlaceholder("origin")
-					.setValue(project.remoteName)
-					.onChange((value) => { remoteName = value; }))
+					.setValue(projectConfig.remoteName)
+					.onChange((value) => { projectConfig.remoteName = value; }));
+			new Setting(containerEl)
 				.addButton((button) => button
-					.setButtonText("Save remote")
-					.onClick(() => void this.saveProjectRemote(project, remoteName)))
+					.setButtonText("Save changes")
+					.setCta()
+					.onClick(() => void this.saveProjectConfig(projectConfig)))
 				.addButton((button) => button
 					.setButtonText("Remove")
 					.setWarning()
@@ -144,14 +164,20 @@ export class ProjectSettingsTab extends PluginSettingTab {
 		await this.onProjectsChanged();
 	}
 
-	private async saveProjectRemote(project: RegisteredProject, remoteName: string): Promise<void> {
-		const result = await this.registry.updateProject({ ...project, remoteName });
-		if (!result.ok) {
-			new Notice(`Could not save Git remote: ${result.error.message}`);
+	private async saveProjectConfig(project: RegisteredProject): Promise<void> {
+		if (!project.displayName.trim() || !project.repositoryRoot.trim() || !project.notePath.trim() || !project.remoteName.trim()) {
+			new Notice("Enter a display name, repository root, project note, and Git remote.");
 			return;
 		}
 
-		new Notice(`Saved Git remote "${remoteName.trim()}" for "${project.displayName}".`);
+		const result = await this.registry.updateProject(project);
+		if (!result.ok) {
+			new Notice(`Could not save project settings: ${result.error.message}`);
+			return;
+		}
+
+		const savedProject = result.value.find((entry) => entry.id === project.id);
+		new Notice(`Saved settings for "${savedProject?.displayName ?? project.displayName.trim()}".`);
 		this.display();
 		await this.onProjectsChanged();
 	}

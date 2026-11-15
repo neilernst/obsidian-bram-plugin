@@ -170,15 +170,44 @@ async function renderProjectBlock(
 ): Promise<void> {
 	element.empty();
 	element.addClass("bram-project-note-block");
-	element.createEl("h3", { cls: "bram-project-note-block__title", text: project.displayName });
-	const [worklist, git, issues] = await Promise.all([
-		safeRead("Bram Worklist", () => worklistReader.read(project)),
-		safeRead("Git repository", () => gitReader.read(project)),
-		safeRead("GitHub issues", () => githubIssueReader.read(project)),
-	]);
-	renderWorklist(element, worklist);
-	renderRepository(element, git);
-	renderGitHubIssues(element, issues);
+	const header = element.createDiv({ cls: "bram-project-note-block__header" });
+	header.createEl("h3", { cls: "bram-project-note-block__title", text: project.displayName });
+	const toolbar = header.createDiv({ cls: "bram-project-note-block__toolbar" });
+	const refreshStatus = toolbar.createEl("span", {
+		cls: "bram-project-note-block__refresh-status",
+		text: "Loading project data…",
+	});
+	const refreshButton = toolbar.createEl("button", {
+		cls: "bram-project-note-block__refresh-button",
+		text: "Refresh",
+	});
+	const content = element.createDiv({ cls: "bram-project-note-block__content" });
+	let isRefreshing = false;
+	const refresh = async (): Promise<void> => {
+		if (isRefreshing) return;
+		isRefreshing = true;
+		refreshButton.disabled = true;
+		refreshButton.textContent = "Refreshing…";
+		refreshStatus.setText("Refreshing project data…");
+		try {
+			const [worklist, git, issues] = await Promise.all([
+				safeRead("Bram Worklist", () => worklistReader.read(project)),
+				safeRead("Git repository", () => gitReader.read(project)),
+				safeRead("GitHub issues", () => githubIssueReader.read(project)),
+			]);
+			content.empty();
+			renderWorklist(content, worklist);
+			renderRepository(content, git);
+			renderGitHubIssues(content, issues);
+			refreshStatus.setText(`Last refreshed ${new Date().toLocaleTimeString()}`);
+		} finally {
+			isRefreshing = false;
+			refreshButton.disabled = false;
+			refreshButton.textContent = "Refresh";
+		}
+	};
+	refreshButton.addEventListener("click", () => void refresh());
+	await refresh();
 }
 
 export function registerProjectNoteBlock(plugin: Plugin, registry: ProjectRegistry): void {

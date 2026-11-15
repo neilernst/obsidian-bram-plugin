@@ -31,6 +31,7 @@ Use a public GitHub repository with no open issues to check the empty state if o
 - Enable the plugin and open **Project overview**. Confirm it refreshes on open and shows both registered projects.
 - Use manual refresh and confirm the refresh time updates.
 - Add a fixture project in the plugin settings, close and reopen Obsidian, and confirm the registration persists. Remove that project and confirm the removal persists after another restart.
+- Edit a registered fixture project's display name, repository root, note path, and Git remote. Save, close and reopen Obsidian, and confirm all four values persist under the same project ID. Confirm the overview uses the updated name, repository root, and note path, and the note block reads GitHub issues from the selected remote.
 - Open each project note from the overview. Confirm the correct vault note opens and existing Markdown, wikilinks, and citation syntax remain intact.
 - Point one entry at a missing path. Confirm that project shows a readable error while the other project remains visible.
 
@@ -49,6 +50,7 @@ Use a public GitHub repository with no open issues to check the empty state if o
 
 - Compare staged, unstaged, and untracked counts. Confirm a staged deletion is still shown as repository activity, not completed work.
 - Compare the overview and note block for the same project. Confirm the block resolves the intended project and reflects the same Worklist and Git snapshot.
+- Change the temporary Worklist fixture and local Git state, then click **Refresh** in the note block. Confirm the displayed values and last-refresh time update without rerendering the note. Click it again while a refresh is running and confirm duplicate reads are not started.
 - Try the missing, malformed, invalid-shape, and non-Git variants. Confirm each produces a readable error and does not hide other projects.
 
 **Pass when:** the displayed values match the fixture sources, refresh replaces stale values, and failed inputs are reported rather than presented as empty or clean data.
@@ -58,6 +60,7 @@ Use a public GitHub repository with no open issues to check the empty state if o
 - Confirm the fixture's configured remote points to the intended `github.com/owner/repository`. The reader uses that remote to choose the API repository. Verify `origin` is the default, then register or edit another fixture project to use `upstream` and confirm the GitHub issues come from that remote's repository.
 - For a public repository, leave the token setting empty and confirm the block loads issues. For a private repository, save a fine-grained token scoped to that repository with Issues read-only permission.
 - Confirm the issue dropdown starts collapsed and expands when selected. Compare its five issues with the first five non-PR open issues on the repository's GitHub Issues page sorted by most recently updated: number, title, labels, update date, link, and the start of the body excerpt. Confirm no pull request titles or other details appear.
+- Click **Refresh** in the note block and confirm GitHub issues are fetched again alongside the Bram and Git data.
 - Use a public repository with no open issues to check the empty state.
 - Check a private repository with no token, an invalid token, a token without Issues read permission, a repository without the selected remote, and a selected non-GitHub remote. Confirm each case has a readable error and the Worklist and Git sections still render.
 - If GitHub returns a rate-limit or network error during the run, record the concise error state. Do not copy credentials, tokens, or issue bodies into the results file.
