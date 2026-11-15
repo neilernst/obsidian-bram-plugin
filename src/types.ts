@@ -6,6 +6,7 @@ export interface RegisteredProject {
 	displayName: string;
 	repositoryRoot: string;
 	notePath: string;
+	remoteName: string;
 }
 
 export type ReadErrorKind = "missing" | "invalid" | "unavailable";

@@ -156,11 +156,11 @@ function repositoryFromRemote(remote: string): GitHubRepository | null {
 	return { owner: segments[0], repository: segments[1] };
 }
 
-function readOriginRemote(repositoryRoot: string): Promise<ReadResult<GitHubRepository>> {
+function readConfiguredRemote(repositoryRoot: string, remoteName: string): Promise<ReadResult<GitHubRepository>> {
 	return new Promise((resolve) => {
 		execFile(
 			"git",
-			["-C", repositoryRoot, "remote", "get-url", "origin"],
+			["-C", repositoryRoot, "remote", "get-url", remoteName],
 			{ encoding: "utf8", shell: false, timeout: 10_000, windowsHide: true },
 			(error, stdout) => {
 				if (error) {
@@ -173,13 +173,13 @@ function readOriginRemote(repositoryRoot: string): Promise<ReadResult<GitHubRepo
 						resolve(failure("unavailable", "Looking up the repository's GitHub remote timed out."));
 						return;
 					}
-					resolve(failure("unavailable", "Could not read the origin remote. Configure an origin remote pointing to GitHub."));
+					resolve(failure("unavailable", `Could not read the "${remoteName}" remote. Configure that remote to point to GitHub.`));
 					return;
 				}
 
 				const repository = repositoryFromRemote(String(stdout));
 				if (!repository) {
-					resolve(failure("unavailable", "The origin remote is not a supported github.com repository URL."));
+					resolve(failure("unavailable", `The "${remoteName}" remote is not a supported github.com repository URL.`));
 					return;
 				}
 				resolve({ ok: true, value: repository });
@@ -207,7 +207,7 @@ function httpFailure(status: number, headers: Record<string, string>, hasToken: 
 		return failure(
 			"unavailable",
 			hasToken
-				? "GitHub repository was not found or the token cannot access it. Check the origin remote and token repository access."
+				? "GitHub repository was not found or the token cannot access it. Check the configured remote and token repository access."
 				: "GitHub repository was not found. If it is private, add a read-only token in Bram Project Tracker settings.",
 		);
 	}
@@ -271,7 +271,7 @@ export class GitHubIssueReader {
 			return failure("invalid", message);
 		}
 
-		const repository = await readOriginRemote(repositoryRoot);
+		const repository = await readConfiguredRemote(repositoryRoot, project.remoteName);
 		if (!repository.ok) return repository;
 		return fetchIssues(repository.value, this.getToken().trim());
 	}

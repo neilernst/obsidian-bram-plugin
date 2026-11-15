@@ -6,7 +6,7 @@ Use this walkthrough after implementation steps 2–4 in [the project plan](proj
 
 1. Use a disposable Obsidian vault, not your main vault. Keep the test vault and all repository fixtures separate from real project checkouts.
 2. Build the plugin as described in the repository README, link it into the vault at `.obsidian/plugins/bram-project-tracker`, then enable **Bram Project Tracker** in **Settings → Community plugins**.
-3. Record the Obsidian version, operating system, plugin revision, and Git version. Confirm Git is available to the Obsidian process for local repository and origin lookup. The GitHub issue reader calls the REST API directly and does not require the GitHub CLI.
+3. Record the Obsidian version, operating system, plugin revision, and Git version. Confirm Git is available to the Obsidian process for local repository and selected-remote lookup. The GitHub issue reader calls the REST API directly and does not require the GitHub CLI.
 4. Register two fixture projects with vault-resident notes. Add an empty `bram-project` fenced block to one note:
 
    ````markdown
@@ -55,11 +55,11 @@ Use a public GitHub repository with no open issues to check the empty state if o
 
 ## GitHub issues via the REST API
 
-- Confirm the fixture's `origin` remote points to the intended `github.com/owner/repository`. The reader uses that remote to choose the API repository.
+- Confirm the fixture's configured remote points to the intended `github.com/owner/repository`. The reader uses that remote to choose the API repository. Verify `origin` is the default, then register or edit another fixture project to use `upstream` and confirm the GitHub issues come from that remote's repository.
 - For a public repository, leave the token setting empty and confirm the block loads issues. For a private repository, save a fine-grained token scoped to that repository with Issues read-only permission.
 - Confirm the issue dropdown starts collapsed and expands when selected. Compare its five issues with the first five non-PR open issues on the repository's GitHub Issues page sorted by most recently updated: number, title, labels, update date, link, and the start of the body excerpt. Confirm no pull request titles or other details appear.
 - Use a public repository with no open issues to check the empty state.
-- Check a private repository with no token, an invalid token, a token without Issues read permission, a repository without a GitHub origin, and a non-GitHub origin. Confirm each case has a readable error and the Worklist and Git sections still render.
+- Check a private repository with no token, an invalid token, a token without Issues read permission, a repository without the selected remote, and a selected non-GitHub remote. Confirm each case has a readable error and the Worklist and Git sections still render.
 - If GitHub returns a rate-limit or network error during the run, record the concise error state. Do not copy credentials, tokens, or issue bodies into the results file.
 
 **Pass when:** issue content matches the repository, the empty state is clear, and each unavailable case is identified without disrupting Worklist or Git data.

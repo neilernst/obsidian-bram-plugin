@@ -41,6 +41,10 @@ function parseProject(value: unknown): ReadResult<RegisteredProject> {
 	if (!nonEmptyString(value.notePath)) {
 		return { ok: false, error: error("invalid", "A project note path must be a non-empty string.") };
 	}
+	const remoteName = value.remoteName === undefined ? "origin" : value.remoteName;
+	if (!nonEmptyString(remoteName) || remoteName.trim().startsWith("-")) {
+		return { ok: false, error: error("invalid", "A Git remote name must be non-empty and must not start with a hyphen.") };
+	}
 
 	let repositoryRoot: string;
 	try {
@@ -57,6 +61,7 @@ function parseProject(value: unknown): ReadResult<RegisteredProject> {
 			displayName: value.displayName.trim(),
 			repositoryRoot,
 			notePath: value.notePath.trim(),
+			remoteName: remoteName.trim(),
 		},
 	};
 }
